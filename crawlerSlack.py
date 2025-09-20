@@ -5,7 +5,7 @@ import time                    # sleep / medir tempo
 import os                      # operações com sistema de arquivos e variáveis de ambiente
 from datetime import datetime  # para timestamps legíveis
 from uuid import getnode as get_mac  # retorna o MAC como um inteiro (veja observações abaixo)
-from slack_sdk import WebClient
+
 
 # cole aq o conteudo do txt "Slack" e descomente as linhas da def main e a função alerta enviar_alerta_canal
 
