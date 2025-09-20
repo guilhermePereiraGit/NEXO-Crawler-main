@@ -92,6 +92,7 @@ def redefinir_caminho():
     NOME_ARQUIVO_PROCESSO = f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}-Processos {MAC_ADRESS}.csv"
     CAMINHO_ARQUIVO_PROCESSO = os.path.join(CAMINHO_PASTA, NOME_ARQUIVO_PROCESSO)
     return CAMINHO_ARQUIVO,NOME_ARQUIVO, NOME_ARQUIVO_PROCESSO, CAMINHO_ARQUIVO_PROCESSO
+
 # --- Lógica principal ---
 def main():
     print("Iniciando o monitoramento. Pressione Ctrl+C a qualquer momento para sair.")
