@@ -7,10 +7,8 @@ from datetime import datetime  # para timestamps legíveis
 from uuid import getnode as get_mac  # retorna o MAC como um inteiro (veja observações abaixo)
 from slack_sdk import WebClient
 
+# cole aq o conteudo do txt "Slack" e descomente as linhas da def main e a função alerta enviar_alerta_canal
 
-slack_client = WebClient(token=("xoxb-9455078396583-9524770957313-TbwFeOlSinZD8e6azfX80Jnz")) #isso é tipo o telefone do meu bot
-
-CANAL_ALERTA = "C09EYEPDWGM"  #ID do canal (No caso canal da  BIQ)
 
 # -----------------------------------------------------------------------
 
@@ -30,7 +28,7 @@ NOME_CHUNK = f"chunks_processados_{MAC_ADRESS}.csv"      # nome do arquivo que a
 CAMINHO_CHUNKS = os.path.join(CAMINHO_PASTA, NOME_CHUNK) # caminho para a inserção dos chunks
 
 # Funções
-
+"""
 def enviar_alerta_canal(mensagem):
     
     # Envia uma mensagem para o canal Slack definido (CANAL_ALERTA).
@@ -44,7 +42,7 @@ def enviar_alerta_canal(mensagem):
     except Exception as e:
         print(f"Erro ao enviar alerta: {e}")
         registrar_log(f"ERRO AO ENVIAR ALERTA: {e}")
-
+"""
 
 def coletar_dados_hardware():
 
@@ -225,14 +223,14 @@ def main():
             ultimo_dado = dados_coletados[-1]  # pega o último dado coletado
 
             # Verificações de limites — se exceder, envia alerta ao Slack
-            if ultimo_dado['cpu'] > LIMITE_CPU:
-                enviar_alerta_canal(f"🟥 CPU acima do limite! {ultimo_dado['cpu']}% em {ultimo_dado['timestamp']}")
+            #if ultimo_dado['cpu'] > LIMITE_CPU:
+            #    enviar_alerta_canal(f"🟥 CPU acima do limite! {ultimo_dado['cpu']}% em {ultimo_dado['timestamp']}")
 
-            if ultimo_dado['ram'] > LIMITE_RAM:
-                enviar_alerta_canal(f"🟥 RAM acima do limite! {ultimo_dado['ram']}% em {ultimo_dado['timestamp']}")
+            #if ultimo_dado['ram'] > LIMITE_RAM:
+            #    enviar_alerta_canal(f"🟥 RAM acima do limite! {ultimo_dado['ram']}% em {ultimo_dado['timestamp']}")
 
-            if ultimo_dado['disco'] > LIMITE_DISCO:
-                enviar_alerta_canal(f"🟥 Disco acima do limite! {ultimo_dado['disco']}% em {ultimo_dado['timestamp']}")
+            #if ultimo_dado['disco'] > LIMITE_DISCO:
+            #    enviar_alerta_canal(f"🟥 Disco acima do limite! {ultimo_dado['disco']}% em {ultimo_dado['timestamp']}")
 
             processos = coletar_dados_processos()
 
