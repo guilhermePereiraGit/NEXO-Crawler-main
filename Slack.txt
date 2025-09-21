@@ -1,7 +1,0 @@
-Copie e cole essa parte de código no crawlerSlack para funcionar o commit
-
-
-from slack_sdk import WebClient # cole esse import no topo do código
-
-slack_client = WebClient(token=("xoxb-9455078396583-9524770957313-TbwFeOlSinZD8e6azfX80Jnz")) #isso é tipo o telefone do meu bot
-CANAL_ALERTA = "C09EYEPDWGM"  #ID do canal (No caso canal da  BIQ)
