@@ -4,6 +4,7 @@ import time
 import os
 from datetime import datetime
 from uuid import getnode as get_mac
+import platform
 
 # --- Configurações do projeto ---
 DURACAO_CAPTURA = 1 * 60  # 30 minutos em segundos
@@ -17,14 +18,19 @@ NOME_LOG = f"log_processamento_{MAC_ADRESS}.csv"
 CAMINHO_LOG = os.path.join(CAMINHO_PASTA, NOME_LOG)
 NOME_CHUNK = f"chunks_processados_{MAC_ADRESS}.csv"
 CAMINHO_CHUNKS = os.path.join(CAMINHO_PASTA, NOME_CHUNK)
+SISTEMA = platform.system()
 
 # --- Funções de apoio ---
 def coletar_dados_hardware():
+    if SISTEMA == "Windows":
+        disco_percent = psutil.disk_usage('C:\\').percent
+    else:
+        disco_percent = psutil.disk_usage('/').percent
     return {
         'timestamp': datetime.now().strftime('%Y-%m-%d_%H-%M-%S'),
         'cpu': psutil.cpu_percent(),
         'ram': psutil.virtual_memory().percent,
-        'disco': psutil.disk_usage('/').percent,
+        'disco': disco_percent,
         'mac' : MAC_ADRESS
     }
 def coletar_dados_processos():
@@ -41,9 +47,18 @@ def coletar_dados_processos():
 
     for proc in psutil.process_iter():
         try:
-            cpu = round(proc.cpu_percent(interval=None)/ psutil.cpu_count(logical=True),1)
-            disco = round((proc.io_counters().write_bytes / (1024 ** 2)),1)
-            ram = round((proc.memory_info().rss * 100 / psutil.virtual_memory().total),1)
+            cpu = round(proc.cpu_percent(interval=None) / (psutil.cpu_count(logical=True) or 1),1)
+            try:
+                io_counters = proc.io_counters()
+                disco = round((io_counters.write_bytes / (1024 ** 2)),1) if io_counters else 0
+            except (psutil.AccessDenied, AttributeError):
+                disco = 0
+            try:
+               memoria_total = psutil.virtual_memory().total or 1  
+               ram = round((proc.memory_info().rss * 100 / memoria_total), 1)
+            except (psutil.AccessDenied, AttributeError):
+                ram = 0
+            
             if cpu > 0 or ram > 1 or disco > 1:
                 if ram < 1:
                     ram = 0
@@ -56,9 +71,6 @@ def coletar_dados_processos():
                     'ram' : ram,
                     'dados_gravados' : disco,
                     'mac' : MAC_ADRESS})
-        
-             
-                       
         except (psutil.NoSuchProcess, psutil.AccessDenied):
             continue
     return processos_info
