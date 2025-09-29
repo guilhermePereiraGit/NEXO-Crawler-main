@@ -7,14 +7,14 @@ import os                      # operações com sistema de arquivos e variávei
 from datetime import datetime  # para timestamps legíveis
 from uuid import getnode as get_mac  # retorna o MAC como um inteiro (veja observações abaixo)
 
-from slack_sdk import WebClient
+# from slack_sdk import WebClient
 
-slack_client = WebClient(token=(os.getenv("tokenSlack"))) #isso é tipo o telefone do meu bot
-CANAL_ALERTA = os.getenv("CANAL_ALERTA")  #ID do canal (No caso canal da  BIQ)
+# slack_client = WebClient(token=(os.getenv("tokenSlack"))) #isso é tipo o telefone do meu bot
+# CANAL_ALERTA = os.getenv("CANAL_ALERTA")  #ID do canal (No caso canal da  BIQ)
 # -----------------------------------------------------------------------
 
 # Variáveis globais / configuração inicial
-DURACAO_CAPTURA = 0.3 * 60 # tempo que o programa vai funcionar (5 min).
+DURACAO_CAPTURA = 5 * 60 # tempo que o programa vai funcionar (5 min).
 CAMINHO_PASTA = 'dados_monitoramento'  # pasta onde CSVs/logs serão salvos
 MAC_ADRESS = get_mac()                 # retorna um inteiro representando o MAC (ver nota abaixo)
 
@@ -101,8 +101,12 @@ def coletar_dados_processos():
 
             # disco: quantos MB foram escritos pelo processo
             # Conversão de bytes -> megabytes:
-            disco = round((proc.io_counters().write_bytes / (1024 ** 2)), 1)
-
+            try:
+                io = proc.io_counters()
+                disco = round((io.write_bytes / (1024 ** 2)), 1) if io else 0
+            except (psutil.AccessDenied, AttributeError):
+                disco = 0
+                
             # ram: porcentagem do total de memória usada por esse processo
             ram = round((proc.memory_info().rss * 100 / psutil.virtual_memory().total), 1)
 
@@ -127,7 +131,10 @@ def coletar_dados_processos():
         except (psutil.NoSuchProcess, psutil.AccessDenied):
             # Se o processo terminar entre a captura ou não tivermos permissão, pulamos
             continue
-    return processos_info
+        
+    processos_info.sort(key=lambda p: (p['ram'], p['cpu']), reverse=True)
+    
+    return processos_info[:7]
 
 
 def salvar_arquivo(dataFrame, CAMINHO):
@@ -224,14 +231,14 @@ def main():
             ultimo_dado = dados_coletados[-1]  # pega o último dado coletado
 
             # Verificações de limites — se exceder, envia alerta ao Slack
-            #if ultimo_dado['cpu'] > LIMITE_CPU:
-            #    enviar_alerta_canal(f"🟥 CPU acima do limite! {ultimo_dado['cpu']}% em {ultimo_dado['timestamp']}")
+            # if ultimo_dado['cpu'] > LIMITE_CPU:
+                # enviar_alerta_canal(f"🟥 CPU acima do limite! {ultimo_dado['cpu']}% em {ultimo_dado['timestamp']}")
 
-            #if ultimo_dado['ram'] > LIMITE_RAM:
-            #    enviar_alerta_canal(f"🟥 RAM acima do limite! {ultimo_dado['ram']}% em {ultimo_dado['timestamp']}")
+            # if ultimo_dado['ram'] > LIMITE_RAM:
+                # enviar_alerta_canal(f"🟥 RAM acima do limite! {ultimo_dado['ram']}% em {ultimo_dado['timestamp']}")
 
-            #if ultimo_dado['disco'] > LIMITE_DISCO:
-            #    enviar_alerta_canal(f"🟥 Disco acima do limite! {ultimo_dado['disco']}% em {ultimo_dado['timestamp']}")
+            # if ultimo_dado['disco'] > LIMITE_DISCO:
+                # enviar_alerta_canal(f"🟥 Disco acima do limite! {ultimo_dado['disco']}% em {ultimo_dado['timestamp']}")
 
             processos = coletar_dados_processos()
 
