@@ -1,11 +1,12 @@
 # imports principais
-
+import boto3                   # para ter acesso a AWS e aos buckets S3
 import pandas as pd            # para manipular DataFrames e salvar/ler CSVs facilmente
 import psutil                  # biblioteca para coletar métricas de sistema/processos
 import time                    # sleep / medir tempo
 import os                      # operações com sistema de arquivos e variáveis de ambiente
 from datetime import datetime  # para timestamps legíveis
 from uuid import getnode as get_mac  # retorna o MAC como um inteiro (veja observações abaixo)
+from dotenv import load_dotenv # para usar as variáveis do .env
 
 # from slack_sdk import WebClient
 
@@ -27,6 +28,14 @@ NOME_LOG = f"log_processamento_{MAC_ADRESS}.csv"         # nome do arquivo que a
 CAMINHO_LOG = os.path.join(CAMINHO_PASTA, NOME_LOG)      # caminho para a inserção dos logs
 NOME_CHUNK = f"chunks_processados_{MAC_ADRESS}.csv"      # nome do arquivo que armazena os arquivos de processos criados
 CAMINHO_CHUNKS = os.path.join(CAMINHO_PASTA, NOME_CHUNK) # caminho para a inserção dos chunks
+
+load_dotenv()
+
+AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
+AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
+AWS_SESSION_TOKEN = os.getenv("AWS_SESSION_TOKEN")
+AWS_REGION = os.getenv("AWS_REGION")
+BUCKET_NAME = os.getenv("BUCKET_NAME")
 
 # Funções
 """
@@ -153,6 +162,24 @@ def salvar_arquivo(dataFrame, CAMINHO):
         dataFrame.to_csv(CAMINHO, index=False)
 
 
+def upload_s3_temp_creds(arquivo_local, bucket, objeto_s3):
+    s3 = boto3.client(
+        's3',
+        aws_access_key_id=AWS_ACCESS_KEY_ID,
+        aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
+        aws_session_token=AWS_SESSION_TOKEN,
+        region_name=AWS_REGION
+    )
+    
+    try:
+        s3.upload_file(arquivo_local, bucket, objeto_s3)
+        print(f"Upload OK: s3://{bucket}/{objeto_s3}")
+        return True
+    except Exception as e:
+        print(f"Erro: {e}")
+        return False
+
+
 def registrar_log(mensagem):
     
     # Registra um evento em um CSV de log.
@@ -257,6 +284,8 @@ def main():
             df_processos = pd.DataFrame(top5)
             df_processos = df_processos.sort_values(by=['ram', 'cpu'], ascending=False)
             salvar_arquivo(df_processos, CAMINHO_ARQUIVO_PROCESSO)
+            upload_s3_temp_creds(CAMINHO_ARQUIVO, BUCKET_NAME, objeto_s3=f"registros/{NOME_ARQUIVO}/dados.csv")
+            upload_s3_temp_creds(CAMINHO_ARQUIVO_PROCESSO, BUCKET_NAME, objeto_s3=f"registros/{NOME_ARQUIVO_PROCESSO}/dados.csv")
 
             # Verifica se o chunk de captura já durou o tempo configurado
             if time.time() - inicio_captura >= DURACAO_CAPTURA:
