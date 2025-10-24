@@ -214,34 +214,6 @@ def upload_s3_temp_creds(arquivo_local, bucket, objeto_s3):
         print(f"Erro no upload/append: {e}")
         return False
 
-
-
-def registrar_log(mensagem):
-    
-    # Registra um evento em um CSV de log.
-    #  - Cria um DataFrame com timestamp e a mensagem.
-    #  - Usa salvar_arquivo para manter o registro.
-    
-    log_data = pd.DataFrame([{
-        'timestamp': datetime.now(),
-        'evento': mensagem,
-        'mac' : MAC_ADRESS
-    }])
-    salvar_arquivo(log_data, CAMINHO_LOG)
-
-
-def adicionar_a_chunks(nome_arquivo):
-    
-    # Registra no arquivo de 'chunks' o nome dos arquivos gerados (útil para rastrear arquivos).
-    #  - Salva timestamp + nome_arquivo
-    
-    chunk_data = pd.DataFrame([{
-        'timestamp': datetime.now(),
-        'nome_arquivo': nome_arquivo
-    }])
-    salvar_arquivo(chunk_data, CAMINHO_CHUNKS)
-
-
 def redefinir_caminho():
 
     # Gera novos nomes de arquivo baseados no horário atual e atualiza as variáveis globais
@@ -293,18 +265,6 @@ def main():
             time.sleep(10)
             dados_coletados.append(coletar_dados_hardware(horario))
 
-            ultimo_dado = dados_coletados[-1]  # pega o último dado coletado
-
-            # Verificações de limites — se exceder, envia alerta ao Slack
-            # if ultimo_dado['cpu'] > LIMITE_CPU:
-                # enviar_alerta_canal(f"🟥 CPU acima do limite! {ultimo_dado['cpu']}% em {ultimo_dado['timestamp']}")
-
-            # if ultimo_dado['ram'] > LIMITE_RAM:
-                # enviar_alerta_canal(f"🟥 RAM acima do limite! {ultimo_dado['ram']}% em {ultimo_dado['timestamp']}")
-
-            # if ultimo_dado['disco'] > LIMITE_DISCO:
-                # enviar_alerta_canal(f"🟥 Disco acima do limite! {ultimo_dado['disco']}% em {ultimo_dado['timestamp']}")
-
             top5 = coletar_dados_processos(horario)
             
             processos.extend(top5)
@@ -325,13 +285,7 @@ def main():
             if time.time() - inicio_captura >= DURACAO_CAPTURA:
                 redefinir_caminho()
 
-                registrar_log(f"Novo arquivo de dados criado: {NOME_ARQUIVO}")
-                registrar_log(f"Novo arquivo de dados criado: {NOME_ARQUIVO_PROCESSO}")
-
                 print(f"Captura finalizada. Dados salvos em {CAMINHO_ARQUIVO} e em {CAMINHO_ARQUIVO_PROCESSO}")
-
-                adicionar_a_chunks(NOME_ARQUIVO_PROCESSO)
-                adicionar_a_chunks(NOME_ARQUIVO)
 
                 # reset dos buffers
                 inicio_captura = time.time()
@@ -340,12 +294,10 @@ def main():
         except KeyboardInterrupt:
             # Tratamento para Ctrl+C
             print("\nMonitoramento interrompido pelo usuário.")
-            registrar_log("Monitoramento interrompido manualmente.")
             break
         except Exception as e:
             # Qualquer exceção aqui interrompe o loop atual
             print(f"Ocorreu um erro: {e}")
-            registrar_log(f"ERRO: {e}")
             break
 
 if __name__ == "__main__":
