@@ -256,9 +256,9 @@ def redefinir_caminho():
     global CAMINHO_ARQUIVO_PROCESSO
     # global MAC_ADRESS  # removi aqui, o mac do pc literal é imutavel
 
-    NOME_ARQUIVO = f"Dados.csv"
+    NOME_ARQUIVO = f"dados.csv"
     CAMINHO_ARQUIVO = os.path.join(CAMINHO_PASTA, NOME_ARQUIVO)
-    NOME_ARQUIVO_PROCESSO = f"Processos.csv"
+    NOME_ARQUIVO_PROCESSO = f"processos.csv"
     CAMINHO_ARQUIVO_PROCESSO = os.path.join(CAMINHO_PASTA, NOME_ARQUIVO_PROCESSO)
     return CAMINHO_ARQUIVO, NOME_ARQUIVO, NOME_ARQUIVO_PROCESSO, CAMINHO_ARQUIVO_PROCESSO
 
