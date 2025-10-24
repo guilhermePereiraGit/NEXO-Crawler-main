@@ -289,9 +289,6 @@ def main():
         try:
             # Limites configurados (valores de exemplo), esses são os parametros que viriam do banco
             horario = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
-            LIMITE_CPU = 1   
-            LIMITE_RAM = 1   
-            LIMITE_DISCO = 1 
 
             time.sleep(10)
             dados_coletados.append(coletar_dados_hardware(horario))
