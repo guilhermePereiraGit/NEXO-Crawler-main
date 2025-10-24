@@ -7,6 +7,7 @@ import os                      # operações com sistema de arquivos e variávei
 from datetime import datetime  # para timestamps legíveis
 from uuid import getnode as get_mac  # retorna o MAC como um inteiro (veja observações abaixo)
 from dotenv import load_dotenv # para usar as variáveis do .env
+import tempfile                # para criar um arquivo temporário antes de enviar ao bucket
 
 # from slack_sdk import WebClient
 
@@ -19,8 +20,8 @@ DURACAO_CAPTURA = 5 * 60 # tempo que o programa vai funcionar (5 min).
 CAMINHO_PASTA = 'dados_monitoramento'  # pasta onde CSVs/logs serão salvos
 MAC_ADRESS = get_mac()                 # retorna um inteiro representando o MAC (ver nota abaixo)
 
-NOME_ARQUIVO = f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}-dados {MAC_ADRESS}.csv"  # nome do arquivo que armazena os dados de máquina
-NOME_ARQUIVO_PROCESSO = f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}-Processos {MAC_ADRESS}.csv" # nome do arquivo que armazena os processos da máquina
+NOME_ARQUIVO = f"Dados.csv"  # nome do arquivo que armazena os dados de máquina
+NOME_ARQUIVO_PROCESSO = f"Processos.csv" # nome do arquivo que armazena os processos da máquina
 CAMINHO_ARQUIVO = os.path.join(CAMINHO_PASTA, NOME_ARQUIVO) # caminho para a inserção dos dados de máquina
 CAMINHO_ARQUIVO_PROCESSO = os.path.join(CAMINHO_PASTA, NOME_ARQUIVO_PROCESSO) # caminho para a inserção dos processos da máquina
 
@@ -170,14 +171,49 @@ def upload_s3_temp_creds(arquivo_local, bucket, objeto_s3):
         aws_session_token=AWS_SESSION_TOKEN,
         region_name=AWS_REGION
     )
-    
+
+    # Diretório do MAC no bucket (garante que exista)
+    mac_dir_prefix = f"/registros/{MAC_ADRESS}/"
     try:
-        s3.upload_file(arquivo_local, bucket, objeto_s3)
-        print(f"Upload OK: s3://{bucket}/{objeto_s3}")
-        return True
+        resultado = s3.list_objects_v2(Bucket=bucket, Prefix=mac_dir_prefix, MaxKeys=1)
+        if 'Contents' not in resultado:
+            # Cria um marcador de diretório vazio
+            s3.put_object(Bucket=bucket, Key=mac_dir_prefix)
     except Exception as e:
-        print(f"Erro: {e}")
+        print(f"Erro ao verificar/criar diretório no S3: {e}")
+
+    # Caminho completo do arquivo no S3
+    objeto_final = f"{mac_dir_prefix}{os.path.basename(objeto_s3)}"
+
+    try:
+        temp_path = os.path.join(tempfile.gettempdir(), "temp_s3_append.csv")
+        df_novo = pd.read_csv(arquivo_local)
+
+        # Tenta baixar o arquivo existente no S3 para merge
+        try:
+            s3.download_file(bucket, objeto_final, temp_path)
+            df_existente = pd.read_csv(temp_path)
+            # Faz merge e remove duplicatas baseadas em timestamp + mac
+            df_concat = pd.concat([df_existente, df_novo], ignore_index=True)
+            df_concat = df_concat.drop_duplicates(subset=['timestamp', 'mac'], keep='last')
+            df_concat.to_csv(temp_path, index=False)
+            s3.upload_file(temp_path, bucket, objeto_final)
+            print(f"Append (com merge seguro) OK: s3://{bucket}/{objeto_final}")
+
+        except s3.exceptions.ClientError as e:
+            # Caso o arquivo não exista ainda (404)
+            if e.response['Error']['Code'] == "404":
+                s3.upload_file(arquivo_local, bucket, objeto_final)
+                print(f"Upload inicial OK: s3://{bucket}/{objeto_final}")
+            else:
+                raise e
+
+        return True
+
+    except Exception as e:
+        print(f"Erro no upload/append: {e}")
         return False
+
 
 
 def registrar_log(mensagem):
@@ -220,9 +256,9 @@ def redefinir_caminho():
     global CAMINHO_ARQUIVO_PROCESSO
     # global MAC_ADRESS  # removi aqui, o mac do pc literal é imutavel
 
-    NOME_ARQUIVO = f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')} - {MAC_ADRESS}.csv"
+    NOME_ARQUIVO = f"Dados.csv"
     CAMINHO_ARQUIVO = os.path.join(CAMINHO_PASTA, NOME_ARQUIVO)
-    NOME_ARQUIVO_PROCESSO = f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}-Processos {MAC_ADRESS}.csv"
+    NOME_ARQUIVO_PROCESSO = f"Processos.csv"
     CAMINHO_ARQUIVO_PROCESSO = os.path.join(CAMINHO_PASTA, NOME_ARQUIVO_PROCESSO)
     return CAMINHO_ARQUIVO, NOME_ARQUIVO, NOME_ARQUIVO_PROCESSO, CAMINHO_ARQUIVO_PROCESSO
 
@@ -257,7 +293,7 @@ def main():
             LIMITE_RAM = 1   
             LIMITE_DISCO = 1 
 
-            time.sleep(5)
+            time.sleep(10)
             dados_coletados.append(coletar_dados_hardware(horario))
 
             ultimo_dado = dados_coletados[-1]  # pega o último dado coletado
@@ -279,13 +315,14 @@ def main():
 
             # Converte listas em DataFrames e salva (sobrescreve o arquivo com o DataFrame completo)
             df_dados = pd.DataFrame(dados_coletados)
-            df_dados.to_csv(CAMINHO_ARQUIVO, index=False)
+            salvar_arquivo(df_dados, CAMINHO_ARQUIVO)
 
             df_processos = pd.DataFrame(top5)
             df_processos = df_processos.sort_values(by=['ram', 'cpu'], ascending=False)
             salvar_arquivo(df_processos, CAMINHO_ARQUIVO_PROCESSO)
-            upload_s3_temp_creds(CAMINHO_ARQUIVO, BUCKET_NAME, objeto_s3=f"registros/{NOME_ARQUIVO}/dados.csv")
-            upload_s3_temp_creds(CAMINHO_ARQUIVO_PROCESSO, BUCKET_NAME, objeto_s3=f"registros/{NOME_ARQUIVO_PROCESSO}/dados.csv")
+            upload_s3_temp_creds(CAMINHO_ARQUIVO, BUCKET_NAME, objeto_s3=f"dados.csv")
+            upload_s3_temp_creds(CAMINHO_ARQUIVO_PROCESSO, BUCKET_NAME, objeto_s3=f"processos.csv")
+
 
             # Verifica se o chunk de captura já durou o tempo configurado
             if time.time() - inicio_captura >= DURACAO_CAPTURA:
