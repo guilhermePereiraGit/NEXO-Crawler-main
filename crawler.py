@@ -16,7 +16,7 @@ conexao = mysql.connector.connect(
     host="174.129.108.106",  # ou o IP do servidor
     user="root",             # seu usuário MySQL
     password="urubu100",     # sua senha
-    database="sistema_nexo"
+    database="NEXO_DB"
 )
 
 
@@ -45,7 +45,6 @@ BUCKET_NAME = os.getenv("BUCKET_NAME")
 
 # selects 
 informacoesMAC = ()
-componentes = ()
 queryInformacoesMAC = """
 SELECT 
     m.nome AS modeloNome,
@@ -60,19 +59,6 @@ informacoesMAC = pd.read_sql(queryInformacoesMAC, conexao, params=(MAC_ADRESS,))
 modelo = informacoesMAC.iloc[0, 0]  
 idEmpresa = informacoesMAC.iloc[0, 1]  
 
-queryComponentes = """
-SELECT 
-    tp.nome
-FROM modelo m
-INNER JOIN Parametro p ON m.idModelo = p.fkModelo
-INNER JOIN Tipo_Parametro tp ON p.fkTipoParametro = tp.idTipo_Parametro
-WHERE m.nome = %s;
-"""
-
-componentes = pd.read_sql(queryComponentes, conexao, params=(modelo,))
-
-
-
 # Funções
 
 def coletar_dados_hardware(momento):
@@ -83,14 +69,17 @@ def coletar_dados_hardware(momento):
     #  - ram: percentagem de uso de memória física
     #  - disco: percentagem de uso do disco raiz '/'
     #  - mac: o identificador MAC do host (usado para correlacionar múltiplos hosts)
+        
 
     return {
-        'timestamp': momento, # data e hora da captura
+        'timestamp': momento,                            # data e hora da captura
         'cpu': psutil.cpu_percent(),                     # uso de CPU total do sistema
         'ram': psutil.virtual_memory().percent,          # uso de RAM em %
         'disco': psutil.disk_usage('/').percent,         # uso do disco da raiz em %
         'qtd_processos': len(psutil.pids()),             # quantidade de processos rodando
-        'mac' : MAC_ADRESS                               # Endereço físico
+        'mac' : MAC_ADRESS,                              # Endereço físico
+        'modelo': modelo,                                # modelo do totem associado pelo MAC
+        'idEmpresa': idEmpresa                           # id da empresa associada a este MAC
     }
 
 
@@ -160,7 +149,9 @@ def coletar_dados_processos(momento):
                     'cpu' : cpu,
                     'ram' : ram,
                     'disco' : disco,
-                    'mac' : MAC_ADRESS
+                    'mac' : MAC_ADRESS,
+                    'modelo': modelo,                                # modelo do totem associado pelo MAC
+                    'idEmpresa': idEmpresa                           # id da empresa associada a este MAC
                 })
 
         except (psutil.NoSuchProcess, psutil.AccessDenied):
