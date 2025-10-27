@@ -8,12 +8,17 @@ from datetime import datetime  # para timestamps legíveis
 from uuid import getnode as get_mac  # retorna o MAC como um inteiro (veja observações abaixo)
 from dotenv import load_dotenv # para usar as variáveis do .env
 import tempfile                # para criar um arquivo temporário antes de enviar ao bucket
+import mysql.connector         # usado para conexão com o banco
 
-# from slack_sdk import WebClient
-
-# slack_client = WebClient(token=(os.getenv("tokenSlack"))) #isso é tipo o telefone do meu bot
-# CANAL_ALERTA = os.getenv("CANAL_ALERTA")  #ID do canal (No caso canal da  BIQ)
 # -----------------------------------------------------------------------
+
+conexao = mysql.connector.connect(
+    host="174.129.108.106",  # ou o IP do servidor
+    user="root",             # seu usuário MySQL
+    password="urubu100",     # sua senha
+    database="sistema_nexo"
+)
+
 
 # Variáveis globais / configuração inicial
 DURACAO_CAPTURA = 5 * 60 # tempo que o programa vai funcionar (5 min).
@@ -38,22 +43,37 @@ AWS_SESSION_TOKEN = os.getenv("AWS_SESSION_TOKEN")
 AWS_REGION = os.getenv("AWS_REGION")
 BUCKET_NAME = os.getenv("BUCKET_NAME")
 
+# selects 
+informacoesMAC = ()
+componentes = ()
+queryInformacoesMAC = """
+SELECT 
+    m.nome AS modeloNome,
+    m.fkEmpresa
+FROM totem t
+INNER JOIN modelo m ON t.fkModelo = m.idModelo
+WHERE t.numMac = %s;
+"""
+
+informacoesMAC = pd.read_sql(queryInformacoesMAC, conexao, params=(MAC_ADRESS,))
+
+modelo = informacoesMAC.iloc[0, 0]  
+idEmpresa = informacoesMAC.iloc[0, 1]  
+
+queryComponentes = """
+SELECT 
+    tp.nome
+FROM modelo m
+INNER JOIN Parametro p ON m.idModelo = p.fkModelo
+INNER JOIN Tipo_Parametro tp ON p.fkTipoParametro = tp.idTipo_Parametro
+WHERE m.nome = %s;
+"""
+
+componentes = pd.read_sql(queryComponentes, conexao, params=(modelo,))
+
+
+
 # Funções
-"""
-def enviar_alerta_canal(mensagem):
-    
-    # Envia uma mensagem para o canal Slack definido (CANAL_ALERTA).
-    # Usa slack_client.chat_postMessage (método da slack_sdk).
-    # Em caso de erro, registra no log local.
-    
-    try:
-        # chat_postMessage recebe channel (ID ou nome com #) e mensagem que aparece no slack.
-        slack_client.chat_postMessage(channel=CANAL_ALERTA, text=mensagem)
-        print(f"Alerta enviado: {mensagem}")
-    except Exception as e:
-        print(f"Erro ao enviar alerta: {e}")
-        registrar_log(f"ERRO AO ENVIAR ALERTA: {e}")
-"""
 
 def coletar_dados_hardware(momento):
 
