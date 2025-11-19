@@ -16,14 +16,15 @@ conexao = mysql.connector.connect(
     host="174.129.108.106",  # ou o IP do servidor
     user="root",             # seu usuário MySQL
     password="urubu100",     # sua senha
-    database="NEXO_DB"
+    database="NEXO_DB2"
 )
-
 
 # Variáveis globais / configuração inicial
 DURACAO_CAPTURA = 5 * 60 # tempo que o programa vai funcionar (5 min).
 CAMINHO_PASTA = 'dados_monitoramento'  # pasta onde CSVs/logs serão salvos
 MAC_ADRESS = get_mac()                 # retorna um inteiro representando o MAC (ver nota abaixo)
+
+print(MAC_ADRESS)
 
 NOME_ARQUIVO = f"Dados.csv"  # nome do arquivo que armazena os dados de máquina
 NOME_ARQUIVO_PROCESSO = f"Processos.csv" # nome do arquivo que armazena os processos da máquina
@@ -46,18 +47,16 @@ BUCKET_NAME = os.getenv("BUCKET_NAME")
 # selects 
 informacoesMAC = ()
 queryInformacoesMAC = """
-SELECT 
-    m.nome AS modeloNome,
-    m.fkEmpresa
-FROM totem t
-INNER JOIN modelo m ON t.fkModelo = m.idModelo
-WHERE t.numMac = %s;
+SELECT m.nome AS modeloNome, m.fkEmpresa, t.status
+FROM totem t 
+INNER JOIN modelo m ON t.fkModelo = m.idModelo WHERE t.numMAC = \"%s\";
 """
 
 informacoesMAC = pd.read_sql(queryInformacoesMAC, conexao, params=(MAC_ADRESS,))
 
-modelo = informacoesMAC.iloc[0, 0]  
-idEmpresa = informacoesMAC.iloc[0, 1]  
+modelo = informacoesMAC.iloc[0, 0]
+idEmpresa = informacoesMAC.iloc[0, 1]
+status = informacoesMAC.iloc[0, 2]
 
 # Funções
 
@@ -77,6 +76,7 @@ def coletar_dados_hardware(momento):
         'ram': psutil.virtual_memory().percent,          # uso de RAM em %
         'disco': psutil.disk_usage('/').percent,         # uso do disco da raiz em %
         'qtd_processos': len(psutil.pids()),             # quantidade de processos rodando
+        'uptime': time.time - psutil.boot_time,          # tempo em operação
         'mac' : MAC_ADRESS,                              # Endereço físico
         'modelo': modelo,                                # modelo do totem associado pelo MAC
         'idEmpresa': idEmpresa                           # id da empresa associada a este MAC
@@ -270,6 +270,7 @@ def main():
 
     while True:
         try:
+            
             # Limites configurados (valores de exemplo), esses são os parametros que viriam do banco
             horario = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
 
@@ -280,7 +281,7 @@ def main():
             
             processos.extend(top5)
             
-
+            
             # Converte listas em DataFrames e salva (sobrescreve o arquivo com o DataFrame completo)
             df_dados = pd.DataFrame(dados_coletados)
             salvar_arquivo(df_dados, CAMINHO_ARQUIVO)
