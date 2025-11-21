@@ -13,10 +13,10 @@ import mysql.connector         # usado para conexão com o banco
 # -----------------------------------------------------------------------
 
 conexao = mysql.connector.connect(
-    host="174.129.108.106",  # ou o IP do servidor
+    host="18.214.160.29",  # ou o IP do servidor
     user="root",             # seu usuário MySQL
-    password="urubu100",     # sua senha
-    database="NEXO_DB2"
+    password="*Gui1709*06",     # sua senha
+    database="NEXO_DB"
 )
 
 # Variáveis globais / configuração inicial
@@ -76,7 +76,7 @@ def coletar_dados_hardware(momento):
         'ram': psutil.virtual_memory().percent,          # uso de RAM em %
         'disco': psutil.disk_usage('/').percent,         # uso do disco da raiz em %
         'qtd_processos': len(psutil.pids()),             # quantidade de processos rodando
-        'uptime': time.time - psutil.boot_time,          # tempo em operação
+        'uptime': time.time() - psutil.boot_time(),          # tempo em operação
         'mac' : MAC_ADRESS,                              # Endereço físico
         'modelo': modelo,                                # modelo do totem associado pelo MAC
         'idEmpresa': idEmpresa                           # id da empresa associada a este MAC
