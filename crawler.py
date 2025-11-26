@@ -13,16 +13,16 @@ import mysql.connector         # usado para conexão com o banco
 # -----------------------------------------------------------------------
 
 conexao = mysql.connector.connect(
-    host="18.214.160.29",  # ou o IP do servidor
+    host="174.129.108.106",  # ou o IP do servidor
     user="root",             # seu usuário MySQL
-    password="*Gui1709*06",     # sua senha
+    password="urubu100",     # sua senha
     database="NEXO_DB"
 )
 
 # Variáveis globais / configuração inicial
 DURACAO_CAPTURA = 5 * 60 # tempo que o programa vai funcionar (5 min).
 CAMINHO_PASTA = 'dados_monitoramento'  # pasta onde CSVs/logs serão salvos
-MAC_ADRESS = get_mac()                 # retorna um inteiro representando o MAC (ver nota abaixo)
+MAC_ADRESS = 154724027927939              # retorna um inteiro representando o MAC (ver nota abaixo)
 
 print(MAC_ADRESS)
 
@@ -183,47 +183,20 @@ def upload_s3_temp_creds(arquivo_local, bucket, objeto_s3):
         region_name=AWS_REGION
     )
 
-    # Diretório do MAC no bucket (garante que exista)
-    mac_dir_prefix = f"/registros/{MAC_ADRESS}/"
     try:
-        resultado = s3.list_objects_v2(Bucket=bucket, Prefix=mac_dir_prefix, MaxKeys=1)
-        if 'Contents' not in resultado:
-            # Cria um marcador de diretório vazio
-            s3.put_object(Bucket=bucket, Key=mac_dir_prefix)
-    except Exception as e:
-        print(f"Erro ao verificar/criar diretório no S3: {e}")
-
-    # Caminho completo do arquivo no S3
-    objeto_final = f"{mac_dir_prefix}{os.path.basename(objeto_s3)}"
-
-    try:
-        temp_path = os.path.join(tempfile.gettempdir(), "temp_s3_append.csv")
-        df_novo = pd.read_csv(arquivo_local)
-
-        # Tenta baixar o arquivo existente no S3 para merge
-        try:
-            s3.download_file(bucket, objeto_final, temp_path)
-            df_existente = pd.read_csv(temp_path)
-            # Faz merge e remove duplicatas baseadas em timestamp + mac
-            df_concat = pd.concat([df_existente, df_novo], ignore_index=True)
-            df_concat = df_concat.drop_duplicates(subset=['timestamp', 'mac'], keep='last')
-            df_concat.to_csv(temp_path, index=False)
-            s3.upload_file(temp_path, bucket, objeto_final)
-            print(f"Append (com merge seguro) OK: s3://{bucket}/{objeto_final}")
-
-        except s3.exceptions.ClientError as e:
-            # Caso o arquivo não exista ainda (404)
-            if e.response['Error']['Code'] == "404":
-                s3.upload_file(arquivo_local, bucket, objeto_final)
-                print(f"Upload inicial OK: s3://{bucket}/{objeto_final}")
-            else:
-                raise e
-
+        s3.upload_file(arquivo_local, bucket, objeto_s3)
+        print(f"Upload OK: s3://{bucket}/{objeto_s3}")
         return True
 
     except Exception as e:
-        print(f"Erro no upload/append: {e}")
+        print(f"Erro ao enviar para S3: {e}")
         return False
+
+
+    except Exception as e:
+        print(f"Erro no upload: {e}")
+        return False
+
 
 def redefinir_caminho():
 
@@ -248,7 +221,6 @@ def redefinir_caminho():
 
 # Lógica principal
 def main():
-    
     # Loop principal de coleta:
     #  - cria a pasta de dados se necessário
     #  - inicia um loop infinito (podemos interromper com Ctrl+C)
@@ -258,6 +230,8 @@ def main():
     #      * coleta processos e salva ambos os CSVs
     #  - ao atingir DURACAO_CAPTURA (segundos), redefine o caminho (cria novos arquivos),
     #    registra logs, marca os arquivos no chunks e reseta buffers.
+    
+    data_dir = datetime.now().strftime("%Y-%m-%d")
 
     print("Iniciando o monitoramento. Pressione Ctrl+C a qualquer momento para sair.")
     if not os.path.exists(CAMINHO_PASTA):
@@ -289,8 +263,8 @@ def main():
             df_processos = pd.DataFrame(top5)
             df_processos = df_processos.sort_values(by=['ram', 'cpu'], ascending=False)
             salvar_arquivo(df_processos, CAMINHO_ARQUIVO_PROCESSO)
-            upload_s3_temp_creds(CAMINHO_ARQUIVO, BUCKET_NAME, objeto_s3=f"dados.csv")
-            upload_s3_temp_creds(CAMINHO_ARQUIVO_PROCESSO, BUCKET_NAME, objeto_s3=f"processos.csv")
+            upload_s3_temp_creds(CAMINHO_ARQUIVO, BUCKET_NAME, objeto_s3=f"{idEmpresa}/{MAC_ADRESS}/{data_dir}/dados.csv")
+            upload_s3_temp_creds(CAMINHO_ARQUIVO_PROCESSO, BUCKET_NAME, objeto_s3=f"{idEmpresa}/{MAC_ADRESS}/{data_dir}/processos.csv")
 
 
             # Verifica se o chunk de captura já durou o tempo configurado
