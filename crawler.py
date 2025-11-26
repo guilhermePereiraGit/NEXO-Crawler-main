@@ -22,7 +22,7 @@ conexao = mysql.connector.connect(
 # Variáveis globais / configuração inicial
 DURACAO_CAPTURA = 5 * 60 # tempo que o programa vai funcionar (5 min).
 CAMINHO_PASTA = 'dados_monitoramento'  # pasta onde CSVs/logs serão salvos
-MAC_ADRESS = 154724027927939              # retorna um inteiro representando o MAC (ver nota abaixo)
+MAC_ADRESS = get_mac()             # retorna um inteiro representando o MAC (ver nota abaixo)
 
 print(MAC_ADRESS)
 
