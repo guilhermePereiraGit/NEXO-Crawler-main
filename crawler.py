@@ -256,23 +256,24 @@ def main():
             processos.extend(top5)
             
             
-            # Converte listas em DataFrames e salva (sobrescreve o arquivo com o DataFrame completo)
-            df_dados = pd.DataFrame(dados_coletados)
-            salvar_arquivo(df_dados, CAMINHO_ARQUIVO)
-
-            df_processos = pd.DataFrame(top5)
-            df_processos = df_processos.sort_values(by=['ram', 'cpu'], ascending=False)
-            salvar_arquivo(df_processos, CAMINHO_ARQUIVO_PROCESSO)
-            upload_s3_temp_creds(CAMINHO_ARQUIVO, BUCKET_NAME, objeto_s3=f"{idEmpresa}/{MAC_ADRESS}/{data_dir}/dados.csv")
-            upload_s3_temp_creds(CAMINHO_ARQUIVO_PROCESSO, BUCKET_NAME, objeto_s3=f"{idEmpresa}/{MAC_ADRESS}/{data_dir}/processos.csv")
 
 
             # Verifica se o chunk de captura já durou o tempo configurado
             if time.time() - inicio_captura >= DURACAO_CAPTURA:
-                redefinir_caminho()
+                # Converte listas em DataFrames e salva (sobrescreve o arquivo com o DataFrame completo)
+                df_dados = pd.DataFrame(dados_coletados)
+                salvar_arquivo(df_dados, CAMINHO_ARQUIVO)
 
+                df_processos = pd.DataFrame(top5)
+                df_processos = df_processos.sort_values(by=['ram', 'cpu'], ascending=False)
+                
+                salvar_arquivo(df_processos, CAMINHO_ARQUIVO_PROCESSO)
+                upload_s3_temp_creds(CAMINHO_ARQUIVO, BUCKET_NAME, objeto_s3=f"{idEmpresa}/{MAC_ADRESS}/{data_dir}/dados.csv")
+                upload_s3_temp_creds(CAMINHO_ARQUIVO_PROCESSO, BUCKET_NAME, objeto_s3=f"{idEmpresa}/{MAC_ADRESS}/{data_dir}/processos.csv")
+                
                 print(f"Captura finalizada. Dados salvos em {CAMINHO_ARQUIVO} e em {CAMINHO_ARQUIVO_PROCESSO}")
 
+                redefinir_caminho()
                 # reset dos buffers
                 inicio_captura = time.time()
                 dados_coletados = []
